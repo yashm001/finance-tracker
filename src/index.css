@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  /* Light theme — inspired by clean finance apps */
+  --color-primary: #1E3A5F;
+  --color-primary-light: #2D5F8A;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #3B82F6;
+  --color-accent: #10B981;
+  --color-amber: #F59E0B;
+  --color-background: #F5F7FA;
+  --color-foreground: #1A1D23;
+  --color-surface: #FFFFFF;
+  --color-muted: #EDF0F7;
+  --color-border: #E2E8F0;
+  --color-destructive: #EF4444;
+  --color-ring: #3B82F6;
+  --color-card: #FFFFFF;
+  --color-card-border: #E8ECF2;
+  --color-hero: #1E3A5F;
+  --color-hero-light: #2D5F8A;
+  --color-kpi-bg: #E8F0FE;
+  --color-kpi-border: #D0DFF5;
+  --color-text-secondary: #64748B;
+  --color-text-muted: #94A3B8;
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  position: relative;
+  background: var(--color-background);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-transition {
+  animation: viewFadeIn 0.2s ease-out;
+}
