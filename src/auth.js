@@ -2,7 +2,7 @@ const AUTH_STORAGE_KEY = 'finance_tracker_auth';
 
 // Google OAuth Client ID — public by design, not a secret.
 // Get yours from: Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID
-const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '467177457234-c15ohotl50daqs1il8std2tmo2rnefaj.apps.googleusercontent.com';
 
 let currentIdToken = null;
 let tokenExpiry = 0;
