@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { renderSignInButton } from '../auth'
+import { isGisReady, renderSignInButton } from '../auth'
 
 export default function SignIn() {
   const btnRef = useRef(null)
 
   useEffect(() => {
-    // Wait briefly for GIS to load, then render button
+    // Wait for GIS to be initialized (by initAuth in App.jsx), then render button
     const interval = setInterval(() => {
-      if (window.google?.accounts?.id && btnRef.current) {
+      if (isGisReady() && btnRef.current) {
         clearInterval(interval)
         renderSignInButton(btnRef.current)
       }

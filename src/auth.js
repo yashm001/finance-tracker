@@ -7,6 +7,7 @@ const GOOGLE_CLIENT_ID = '467177457234-c15ohotl50daqs1il8std2tmo2rnefaj.apps.goo
 let currentIdToken = null;
 let tokenExpiry = 0;
 let onAuthChangeCallback = null;
+let gisInitialized = false;
 
 // Decode JWT payload without a library (ID tokens are not encrypted)
 function decodeJwtPayload(jwt) {
@@ -87,6 +88,7 @@ export function initAuth(callback) {
         callback: handleCredentialResponse,
         auto_select: true,
       });
+      gisInitialized = true;
     }
   }, 100);
 
@@ -99,8 +101,12 @@ export function promptSignIn() {
   window.google.accounts.id.prompt();
 }
 
+export function isGisReady() {
+  return gisInitialized && !!window.google?.accounts?.id;
+}
+
 export function renderSignInButton(element) {
-  if (!window.google?.accounts?.id || !element) return;
+  if (!gisInitialized || !window.google?.accounts?.id || !element) return;
   window.google.accounts.id.renderButton(element, {
     theme: 'filled_black',
     size: 'large',
