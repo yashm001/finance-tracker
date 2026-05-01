@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { getApiUrl, setApiUrl, pingApi, clearCachedData } from '../api'
-import { Wifi, WifiOff, Loader2, Save, RefreshCw, User, ExternalLink } from 'lucide-react'
+import { getUserEmail } from '../auth'
+import { Wifi, WifiOff, Loader2, Save, RefreshCw, User, ExternalLink, LogOut } from 'lucide-react'
 
 function getProfileName() {
   return localStorage.getItem('finance_profile_name') || ''
@@ -18,7 +19,7 @@ function setSheetUrl(url) {
   localStorage.setItem('finance_sheet_url', url)
 }
 
-export default function Settings({ onSave, onClearCache, showToast }) {
+export default function Settings({ onSave, onClearCache, onSignOut, showToast }) {
   const [url, setUrl] = useState(getApiUrl())
   const [profileName, setProfileNameState] = useState(getProfileName())
   const [sheetUrl, setSheetUrlState] = useState(getSheetUrl())
@@ -203,6 +204,23 @@ export default function Settings({ onSave, onClearCache, showToast }) {
             <p className="text-[11px] text-text-muted mt-1.5">
               Clears service worker cache and re-fetches all data from the sheet
             </p>
+          </div>
+        )}
+
+        {/* Account */}
+        {getUserEmail() && (
+          <div className="border-t border-card-border pt-6">
+            <p className="text-xs font-semibold text-text-secondary mb-2">Account</p>
+            <div className="flex items-center justify-between px-4 py-3 bg-surface border border-card-border rounded-xl mb-3">
+              <span className="text-sm text-foreground truncate">{getUserEmail()}</span>
+            </div>
+            <button
+              onClick={onSignOut}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-surface border border-destructive/30 rounded-xl text-sm font-semibold text-destructive cursor-pointer transition-colors hover:bg-destructive/10"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </button>
           </div>
         )}
 

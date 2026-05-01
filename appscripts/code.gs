@@ -1,24 +1,31 @@
 // ═══════════════════════════════════════════════════════════════════
-// PERSONAL FINANCE TRACKER — Google Apps Script Backend
+// PERSONAL FINANCE TRACKER — Google Apps Script Backend (PWA)
 // ═══════════════════════════════════════════════════════════════════
 //
-// This script turns your Google Sheet into an API that your
-// iOS Shortcut (and later, PWA) can talk to.
+// This script serves as the authenticated API for the PWA.
+// Requests are validated using Google ID tokens (OAuth).
 //
 // SETUP INSTRUCTIONS:
 // ───────────────────
-// 1. Open your Google Sheet (the finance tracker we built)
+// 1. Open your Google Sheet (the finance tracker)
 // 2. Go to Extensions → Apps Script
 // 3. Delete any existing code in Code.gs
 // 4. Paste this entire file
 // 5. Click 💾 Save
-// 6. Click Deploy → New deployment
+// 6. Go to Project Settings → Script Properties and add:
+//    - GOOGLE_OAUTH_CLIENT_ID = your OAuth Client ID from Google Cloud Console
+//    - ALLOWED_EMAILS = comma-separated list of allowed emails
+//      e.g. yash@gmail.com,friend@gmail.com
+// 7. Click Deploy → New deployment
 //    - Type: Web app
 //    - Execute as: Me
-//    - Who has access: Anyone (so the Shortcut can hit it without OAuth)
-// 7. Click Deploy → Authorize → Allow
-// 8. Copy the Web App URL (looks like: https://script.google.com/macros/s/AKfyc.../exec)
-// 9. That URL goes into your iOS Shortcut
+//    - Who has access: Anyone
+// 8. Click Deploy → Authorize → Allow
+// 9. Copy the Web App URL → paste in PWA Settings
+//
+// NOTE: "Anyone" access is required for cross-origin fetch() to work.
+// Authentication is handled by validating Google ID tokens in the code.
+// The iOS Shortcut uses a SEPARATE Apps Script project (see shortcut_code.gs).
 //
 // ═══════════════════════════════════════════════════════════════════
 
@@ -91,14 +98,97 @@ function getDropdownsFromSheet() {
 
 
 // ═══════════════════════════════════════════════════════════════════
+// AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Validates a Google ID token (JWT) by calling Google's tokeninfo endpoint.
+ * Checks: issuer, audience (client ID), email verified, email in allowlist.
+ * Returns the user's email on success, throws on failure.
+ *
+ * Script Properties required:
+ *   GOOGLE_OAUTH_CLIENT_ID — your OAuth 2.0 Client ID
+ *   ALLOWED_EMAILS — comma-separated list of allowed email addresses
+ */
+function validateIdToken_(idToken) {
+  if (!idToken) {
+    throw new Error("No authentication token provided");
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const clientId = props.getProperty("GOOGLE_OAUTH_CLIENT_ID");
+  if (!clientId) {
+    throw new Error("Server misconfigured: GOOGLE_OAUTH_CLIENT_ID not set");
+  }
+
+  // Verify token with Google
+  const response = UrlFetchApp.fetch(
+    "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken),
+    { muteHttpExceptions: true }
+  );
+
+  if (response.getResponseCode() !== 200) {
+    throw new Error("Invalid or expired token");
+  }
+
+  const payload = JSON.parse(response.getContentText());
+
+  // Verify issuer
+  if (payload.iss !== "accounts.google.com" && payload.iss !== "https://accounts.google.com") {
+    throw new Error("Invalid token issuer");
+  }
+
+  // Verify audience matches our client ID
+  if (payload.aud !== clientId) {
+    throw new Error("Token audience mismatch");
+  }
+
+  // Verify token not expired
+  if (Number(payload.exp) < Math.floor(Date.now() / 1000)) {
+    throw new Error("Token expired");
+  }
+
+  // Verify email is verified
+  if (payload.email_verified !== "true" && payload.email_verified !== true) {
+    throw new Error("Email not verified");
+  }
+
+  // Check allowlist
+  const allowedRaw = props.getProperty("ALLOWED_EMAILS");
+  if (!allowedRaw) {
+    throw new Error("Server misconfigured: ALLOWED_EMAILS not set");
+  }
+
+  const allowed = allowedRaw.split(",").map(function(e) { return e.trim().toLowerCase(); });
+  if (allowed.indexOf(payload.email.toLowerCase()) === -1) {
+    throw new Error("Email not authorized: " + payload.email);
+  }
+
+  return payload.email;
+}
+
+/**
+ * Returns a 401 JSON error response for auth failures.
+ */
+function authErrorResponse_(message) {
+  return jsonResponse({ status: "error", code: 401, message: message });
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
 // MAIN HANDLERS
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Handles GET requests — used to read transactions (for PWA later)
+ * Handles GET requests — reads transactions, summary, dropdown options.
+ * The id_token is passed as a query parameter.
  */
 function doGet(e) {
   try {
+    // Authenticate
+    const idToken = e?.parameter?.id_token;
+    validateIdToken_(idToken);
+
     const action = e?.parameter?.action || "ping";
 
     if (action === "ping") {
@@ -130,16 +220,26 @@ function doGet(e) {
     return jsonResponse({ status: "error", message: "Unknown action: " + action });
 
   } catch (err) {
+    if (err.message.includes("token") || err.message.includes("authorized") || err.message.includes("Email not")) {
+      return authErrorResponse_(err.message);
+    }
     return jsonResponse({ status: "error", message: err.message });
   }
 }
 
 /**
- * Handles POST requests — used to add/edit/delete transactions
+ * Handles POST requests — add/edit/delete transactions.
+ * The id_token is passed in the JSON body.
  */
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
+
+    // Authenticate
+    const idToken = body.id_token;
+    validateIdToken_(idToken);
+    delete body.id_token; // Remove before passing to handlers
+
     const action = body.action || "add";
 
     if (action === "add") {
@@ -154,7 +254,6 @@ function doPost(e) {
       return deleteTransaction(body);
     }
 
-    // Quick add — minimal fields from iOS Shortcut
     if (action === "quick_add") {
       return quickAdd(body);
     }
@@ -162,6 +261,9 @@ function doPost(e) {
     return jsonResponse({ status: "error", message: "Unknown action: " + action });
 
   } catch (err) {
+    if (err.message.includes("token") || err.message.includes("authorized") || err.message.includes("Email not")) {
+      return authErrorResponse_(err.message);
+    }
     return jsonResponse({ status: "error", message: err.message });
   }
 }

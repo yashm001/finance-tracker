@@ -1,5 +1,8 @@
+import { getIdToken } from './auth';
+
 const STORAGE_KEY = 'finance_tracker_api_url';
 const CACHE_KEY = 'finance_tracker_cache';
+const CACHE_ENABLED = false; // Set to true to re-enable localStorage caching of transaction data
 
 export function getApiUrl() {
   return localStorage.getItem(STORAGE_KEY) || '';
@@ -12,6 +15,7 @@ export function setApiUrl(url) {
 // ─── localStorage Cache ───
 
 export function getCachedData() {
+  if (!CACHE_ENABLED) return null;
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
@@ -22,6 +26,7 @@ export function getCachedData() {
 }
 
 export function setCachedData(data) {
+  if (!CACHE_ENABLED) return;
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       transactions: data.transactions,
@@ -38,6 +43,15 @@ export function clearCachedData() {
   localStorage.removeItem(CACHE_KEY);
 }
 
+// ─── Auth error ───
+
+export class AuthError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
+
 // ─── API helpers ───
 
 async function apiGet(params, { timeout = 20000 } = {}) {
@@ -49,6 +63,10 @@ async function apiGet(params, { timeout = 20000 } = {}) {
     if (v != null) url.searchParams.set(k, v);
   });
 
+  // Attach ID token as query parameter
+  const idToken = getIdToken();
+  if (idToken) url.searchParams.set('id_token', idToken);
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 
@@ -56,7 +74,10 @@ async function apiGet(params, { timeout = 20000 } = {}) {
     const res = await fetch(url.toString(), { redirect: 'follow', signal: controller.signal });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const data = await res.json();
-    if (data.status === 'error') throw new Error(data.message || 'API error');
+    if (data.status === 'error') {
+      if (data.code === 401) throw new AuthError(data.message || 'Session expired');
+      throw new Error(data.message || 'API error');
+    }
     return data;
   } catch (err) {
     if (err.name === 'AbortError') throw new Error('Request timed out');
@@ -70,15 +91,22 @@ async function apiPost(body) {
   const baseUrl = getApiUrl();
   if (!baseUrl) throw new Error('API URL not configured');
 
+  // Attach ID token to request body
+  const idToken = getIdToken();
+  const payload = idToken ? { ...body, id_token: idToken } : body;
+
   const res = await fetch(baseUrl, {
     method: 'POST',
     redirect: 'follow',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   const data = await res.json();
-  if (data.status === 'error') throw new Error(data.message || 'API error');
+  if (data.status === 'error') {
+    if (data.code === 401) throw new AuthError(data.message || 'Session expired');
+    throw new Error(data.message || 'API error');
+  }
   return data;
 }
 

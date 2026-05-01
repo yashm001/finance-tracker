@@ -6,11 +6,18 @@ import Dashboard from './components/Dashboard'
 import Transactions from './components/Transactions'
 import AddTransaction from './components/AddTransaction'
 import TaxBreakdown from './components/TaxBreakdown'
-import { getApiUrl, fetchInit, fetchTransactions, fetchSummary, fetchDropdownOptions, getCachedData, setCachedData } from './api'
+import SignIn from './components/SignIn'
+import { getApiUrl, AuthError, fetchInit, fetchTransactions, fetchSummary, fetchDropdownOptions, getCachedData, setCachedData } from './api'
+import { isAuthenticated, initAuth, signOut } from './auth'
 import { getCurrentFY, getCurrentMonth } from './utils'
 
 function App() {
-  const [activeView, setActiveView] = useState(() => getApiUrl() ? 'dashboard' : 'settings')
+  const [authed, setAuthed] = useState(isAuthenticated())
+  const [activeView, setActiveView] = useState(() => {
+    if (!isAuthenticated()) return 'signin'
+    if (!getApiUrl()) return 'settings'
+    return 'dashboard'
+  })
   const [transactions, setTransactions] = useState([])
   const [summary, setSummary] = useState(null)
   const [dropdownOptions, setDropdownOptions] = useState(null)
@@ -26,6 +33,19 @@ function App() {
   const clearToast = useCallback(() => {
     setToast(null)
   }, [])
+
+  // Initialize Google auth
+  useEffect(() => {
+    initAuth((isSignedIn) => {
+      setAuthed(isSignedIn)
+      if (isSignedIn && activeView === 'signin') {
+        setActiveView(getApiUrl() ? 'dashboard' : 'settings')
+      }
+      if (!isSignedIn) {
+        setActiveView('signin')
+      }
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply data from API or cache to state
   const applyData = useCallback((data) => {
@@ -69,7 +89,13 @@ function App() {
       applyData(data)
       setCachedData(data)
     } catch (err) {
-      showToast(err.message, 'error')
+      if (err instanceof AuthError) {
+        showToast('Session expired. Please sign in again.', 'error')
+        setAuthed(false)
+        setActiveView('signin')
+      } else {
+        showToast(err.message, 'error')
+      }
     } finally {
       setLoading(false)
     }
@@ -96,7 +122,14 @@ function App() {
         }
       })
       .catch((err) => {
-        if (!cancelled) showToast(err.message, 'error')
+        if (cancelled) return
+        if (err instanceof AuthError) {
+          showToast('Session expired. Please sign in again.', 'error')
+          setAuthed(false)
+          setActiveView('signin')
+        } else {
+          showToast(err.message, 'error')
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -109,8 +142,16 @@ function App() {
     setActiveView(view)
   }
 
+  const handleSignOut = useCallback(() => {
+    signOut()
+    setAuthed(false)
+    setActiveView('signin')
+  }, [])
+
   const renderView = () => {
     switch (activeView) {
+      case 'signin':
+        return <SignIn />
       case 'settings':
         return (
           <Settings
@@ -120,6 +161,7 @@ function App() {
               setActiveView('dashboard')
             }}
             onClearCache={loadData}
+            onSignOut={handleSignOut}
             showToast={showToast}
           />
         )
@@ -172,7 +214,7 @@ function App() {
       <main key={activeView} className="view-transition">
         {renderView()}
       </main>
-      <BottomNav activeView={activeView} onNavigate={handleNavigate} />
+      {activeView !== 'signin' && <BottomNav activeView={activeView} onNavigate={handleNavigate} />}
     </>
   )
 }
