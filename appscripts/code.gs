@@ -185,15 +185,16 @@ function authErrorResponse_(message) {
  */
 function doGet(e) {
   try {
-    // Authenticate
-    const idToken = e?.parameter?.id_token;
-    validateIdToken_(idToken);
-
     const action = e?.parameter?.action || "ping";
 
+    // Ping doesn't require auth (used by Settings "Test" button)
     if (action === "ping") {
       return jsonResponse({ status: "ok", message: "Finance Tracker API is live" });
     }
+
+    // All other actions require authentication
+    const idToken = e?.parameter?.id_token;
+    validateIdToken_(idToken);
 
     if (action === "init") {
       return getInit(e);
@@ -228,8 +229,9 @@ function doGet(e) {
 }
 
 /**
- * Handles POST requests — add/edit/delete transactions.
- * The id_token is passed in the JSON body.
+ * Handles POST requests — all authenticated actions (read + write).
+ * All authenticated requests use POST so the id_token goes in the body
+ * (not the URL query string, which breaks Google's redirect chain).
  */
 function doPost(e) {
   try {
@@ -242,6 +244,30 @@ function doPost(e) {
 
     const action = body.action || "add";
 
+    // Read actions (previously GET, now POST to avoid long URLs)
+    if (action === "init") {
+      return getInit({ parameter: body });
+    }
+
+    if (action === "transactions") {
+      return getTransactions({ parameter: body });
+    }
+
+    if (action === "summary") {
+      return getSummary({ parameter: body });
+    }
+
+    if (action === "dropdown_options") {
+      const dropdowns = getDropdownsFromSheet();
+      return jsonResponse({
+        status: "ok",
+        modes: dropdowns.modes,
+        categories: dropdowns.categories,
+        subcategories: dropdowns.subcategories,
+      });
+    }
+
+    // Write actions
     if (action === "add") {
       return addTransaction(body);
     }

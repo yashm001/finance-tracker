@@ -58,14 +58,18 @@ async function apiGet(params, { timeout = 20000 } = {}) {
   const baseUrl = getApiUrl();
   if (!baseUrl) throw new Error('API URL not configured');
 
+  // If authenticated, use POST to avoid long id_token in URL query string
+  // (Google's redirect chain breaks with very long URLs)
+  const idToken = getIdToken();
+  if (idToken) {
+    return apiPost({ ...params, id_token: idToken }, { timeout });
+  }
+
+  // Unauthenticated GET (e.g. ping)
   const url = new URL(baseUrl);
   Object.entries(params).forEach(([k, v]) => {
     if (v != null) url.searchParams.set(k, v);
   });
-
-  // Attach ID token as query parameter
-  const idToken = getIdToken();
-  if (idToken) url.searchParams.set('id_token', idToken);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -87,27 +91,38 @@ async function apiGet(params, { timeout = 20000 } = {}) {
   }
 }
 
-async function apiPost(body) {
+async function apiPost(body, { timeout = 20000 } = {}) {
   const baseUrl = getApiUrl();
   if (!baseUrl) throw new Error('API URL not configured');
 
-  // Attach ID token to request body
-  const idToken = getIdToken();
+  // Attach ID token to request body if not already present
+  const idToken = body.id_token || getIdToken();
   const payload = idToken ? { ...body, id_token: idToken } : body;
 
-  const res = await fetch(baseUrl, {
-    method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  const data = await res.json();
-  if (data.status === 'error') {
-    if (data.code === 401) throw new AuthError(data.message || 'Session expired');
-    throw new Error(data.message || 'API error');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(baseUrl, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+    if (data.status === 'error') {
+      if (data.code === 401) throw new AuthError(data.message || 'Session expired');
+      throw new Error(data.message || 'API error');
+    }
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Request timed out');
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  return data;
 }
 
 // ─── Combined init endpoint (single call) ───
