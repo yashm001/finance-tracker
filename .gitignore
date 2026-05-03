@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 mock.md
 /session
+.claude-memory.md
+primer.md

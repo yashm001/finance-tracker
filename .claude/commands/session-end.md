@@ -1,0 +1,1 @@
+Rewrite primer.md with current state: active project, current branch, what was completed this session, exact next step, open blockers. Keep under 100 lines.

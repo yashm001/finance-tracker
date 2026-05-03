@@ -1,5 +1,19 @@
 # CLAUDE.md — Personal Finance Tracker
 
+## PROJECT CONTEXT
+
+**Project:** Personal Finance Tracker (PWA)
+
+## PROJECT RULES
+
+- **Session start:** Read `tasks/lessons.md` and apply all rules before touching any code
+- **During work:** Update `tasks/todo.md` as you work — mark items done, add new ones
+- **Session end:** Run `/session-end` to rewrite `primer.md` with current state
+- **On corrections:** When the user corrects you, write the lesson to `tasks/lessons.md` as a rule
+- `.claude-memory.md` is auto-populated by a post-commit hook — check it for recent commit history
+
+---
+
 ## Project Overview
 
 A personal finance tracking system with three pieces:

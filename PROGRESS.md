@@ -1,6 +1,6 @@
 # PROGRESS.md — Finance Tracker PWA
 
-## Project Status: Phases 1–8 Complete (Core app built)
+## Project Status: All Phases Complete — Deployed
 
 Last updated: 2026-04-30
 
@@ -69,20 +69,20 @@ Last updated: 2026-04-30
 - [x] 8.4 Service worker registration in `main.jsx`
 - [x] 8.5 iOS meta tags (apple-mobile-web-app-capable, status-bar-style)
 
-### Phase 9: Polish & Testing
+### Phase 9: Polish & Testing — DONE
 - [x] 9.1 Loading spinners during API calls
 - [x] 9.2 Error handling with toast notifications
-- [ ] 9.3 Pull-to-refresh or manual refresh button
+- [x] 9.3 Pull-to-refresh or manual refresh button
 - [x] 9.4 Smooth transitions between views — CSS fade-in on view switch
-- [ ] 9.5 Test on iPhone Safari (add to homescreen)
+- [x] 9.5 Test on iPhone Safari (add to homescreen)
 - [x] 9.6 Test all CRUD operations against live API — audited, fixed edit validation bug
 - [x] 9.7 Verified: INR formatting, FY logic, avg/month (Node tests passed)
 
-### Phase 10: Deployment
-- [ ] 10.1 Initialize git repo
-- [ ] 10.2 Push to GitHub
-- [ ] 10.3 Connect to Vercel, configure build
-- [ ] 10.4 Deploy and verify PWA install on iPhone
+### Phase 10: Deployment — DONE
+- [x] 10.1 Initialize git repo
+- [x] 10.2 Push to GitHub (github.com/yashm001/finance-tracker)
+- [x] 10.3 Connect to Vercel, configure build
+- [x] 10.4 Deploy and verify PWA install on iPhone
 
 ---
 
